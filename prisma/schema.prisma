@@ -13,6 +13,11 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model Category {
   id    Int    @id @default(autoincrement())
   name  String @unique
@@ -25,6 +30,16 @@ model Priority {
   tasks Task[]
 }
 
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(USER)
+
+  tasks    Task[]
+}
+
 model Task {
   id          Int          @id @default(autoincrement())
   title       String
@@ -34,9 +49,11 @@ model Task {
 
   categoryId  Int
   priorityId  Int
+  userId      Int?
 
   category    Category     @relation(fields: [categoryId], references: [id])
   priority    Priority     @relation(fields: [priorityId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
 
   histories   TaskHistory[]
 }

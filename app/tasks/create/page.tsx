@@ -1,8 +1,15 @@
 import { prisma } from "../../../lib/prisma";
 import { createTask } from "../actions";
 import Link from "next/link";
+import { getSession } from "../../../lib/session";
+import { redirect } from "next/navigation";
 
 export default async function CreateTaskPage() {
+  const session = await getSession();
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   const categories = await prisma.category.findMany({
     orderBy: {
       id: "asc",

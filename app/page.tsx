@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { TaskStatus } from "@prisma/client";
 import Link from "next/link";
 import { deleteTask } from "./tasks/actions";
+import { getSession } from "../lib/session";
+import { redirect } from "next/navigation";
+import { logout } from "./auth/actions";
 
 const statusLabels: Record<string, string> = {
   TODO: "Chưa làm",
@@ -22,12 +25,31 @@ interface HomePageProps {
   }>;
 }
 
-export default async function HomePage({ searchParams }: HomePageProps) {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+  }>;
+}) {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   const { q, status } = await searchParams;
   const searchQuery = q || "";
 
   const tasks = await prisma.task.findMany({
     where: {
+      ...(session.role === "USER"
+        ? {
+            userId: session.userId,
+          }
+        : {}),
+
       ...(q
         ? {
             title: {
@@ -55,6 +77,39 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   return (
     <main className="min-h-screen bg-slate-50/50 py-10">
       <div className="mx-auto max-w-5xl px-4 py-6 md:p-8">
+        {/* User Info Bar Section */}
+        <div className="mb-6 flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div>
+            <p className="font-medium text-slate-900">
+              Xin chào, {session.name}
+            </p>
+
+            <p className="text-sm text-slate-500">
+              Vai trò: <span className="font-semibold text-slate-700">{session.role}</span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {session.role === "ADMIN" && (
+              <a
+                href="/admin"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700"
+              >
+                Quản trị
+              </a>
+            )}
+
+            <form action={logout}>
+              <button
+                type="submit"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-100 hover:text-slate-900"
+              >
+                Đăng xuất
+              </button>
+            </form>
+          </div>
+        </div>
+
         {/* Header Section */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

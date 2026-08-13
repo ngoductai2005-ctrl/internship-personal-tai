@@ -1,10 +1,19 @@
 import { prisma } from "../../../../lib/prisma";
 import { updateTask } from "../../actions";
+import { getSession } from "../../../../lib/session";
+import { redirect } from "next/navigation";
+
 export default async function EditTaskPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   const { id } = await params;
 
   const task = await prisma.task.findUnique({
@@ -12,6 +21,13 @@ export default async function EditTaskPage({
       id: Number(id),
     },
   });
+
+  if (
+    session.role === "USER" &&
+    task?.userId !== session.userId
+  ) {
+    redirect("/");
+  }
 
   const categories = await prisma.category.findMany();
   const priorities = await prisma.priority.findMany();
@@ -39,7 +55,6 @@ export default async function EditTaskPage({
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-
         {/* Header */}
         <div className="mb-8">
           <p className="mb-2 text-sm font-medium text-gray-500">
@@ -49,22 +64,21 @@ export default async function EditTaskPage({
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
             Sửa công việc
           </h1>
-<a
-    href="/"
-    className="mb-6 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-black"
-  >
-    ← Về trang chủ
-  </a>
+          <a
+            href="/"
+            className="mb-6 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-black"
+          >
+            ← Về trang chủ
+          </a>
           <p className="mt-2 text-gray-500">
             Cập nhật thông tin và trạng thái của công việc.
           </p>
         </div>
 
-       <form
-  action={updateTask}
-  className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
->
-
+        <form
+          action={updateTask}
+          className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+        >
           {/* Form header */}
           <div className="border-b border-gray-100 bg-gray-50 px-6 py-5 sm:px-8">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -77,7 +91,6 @@ export default async function EditTaskPage({
           </div>
 
           <div className="space-y-6 p-6 sm:p-8">
-
             <input type="hidden" name="id" value={task.id} />
 
             {/* Tiêu đề */}
@@ -112,7 +125,7 @@ export default async function EditTaskPage({
               <textarea
                 id="description"
                 name="description"
-                defaultValue={task.description}
+                defaultValue={task.description || ""}
                 rows={5}
                 placeholder="Nhập mô tả chi tiết cho công việc..."
                 className="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-black focus:ring-4 focus:ring-gray-100"
@@ -121,7 +134,6 @@ export default async function EditTaskPage({
 
             {/* Category + Priority */}
             <div className="grid gap-6 sm:grid-cols-2">
-
               {/* Danh mục */}
               <div>
                 <label
@@ -171,7 +183,6 @@ export default async function EditTaskPage({
 
             {/* Status + Date */}
             <div className="grid gap-6 sm:grid-cols-2">
-
               {/* Trạng thái */}
               <div>
                 <label
@@ -189,7 +200,7 @@ export default async function EditTaskPage({
                 >
                   <option value="TODO">Chưa làm</option>
                   <option value="IN_PROGRESS">Đang làm</option>
-                  <option value="COMPLETED">Hoàn thành</option>
+                  <option value="DONE">Hoàn thành</option>
                 </select>
               </div>
 
@@ -216,7 +227,6 @@ export default async function EditTaskPage({
 
           {/* Footer */}
           <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-
             <p className="text-xs text-gray-500">
               Kiểm tra lại thông tin trước khi lưu.
             </p>

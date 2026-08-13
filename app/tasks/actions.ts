@@ -4,8 +4,15 @@ import { prisma } from "../../lib/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { TaskStatus } from "@prisma/client";
+import { getSession } from "../../lib/session";
 
 export async function createTask(formData: FormData) {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const categoryId = Number(formData.get("categoryId"));
@@ -19,15 +26,16 @@ export async function createTask(formData: FormData) {
   if (!dueDate) {
     throw new Error("Vui lòng chọn hạn hoàn thành");
   }
-const selectedDate = new Date(dueDate);
-const today = new Date();
+  const selectedDate = new Date(dueDate);
+  const today = new Date();
 
-today.setHours(0, 0, 0, 0);
-selectedDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  selectedDate.setHours(0, 0, 0, 0);
 
-if (selectedDate < today) {
-  throw new Error("Không được chọn ngày đã qua");
-}
+  if (selectedDate < today) {
+    throw new Error("Không được chọn ngày đã qua");
+  }
+
   await prisma.task.create({
     data: {
       title,
@@ -36,6 +44,7 @@ if (selectedDate < today) {
       dueDate: new Date(dueDate),
       categoryId,
       priorityId,
+      userId: session.userId,
     },
   });
 
@@ -44,6 +53,11 @@ if (selectedDate < today) {
 }
 
 export async function updateTask(formData: FormData) {
+  const session = await getSession();
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   const id = Number(formData.get("id"));
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
@@ -51,6 +65,19 @@ export async function updateTask(formData: FormData) {
   const priorityId = Number(formData.get("priorityId"));
   const status = formData.get("status") as TaskStatus;
   const dueDate = formData.get("dueDate") as string;
+
+  const existingTask = await prisma.task.findUnique({
+    where: { id },
+  });
+  if (!existingTask) {
+    throw new Error("Không tìm thấy công việc");
+  }
+  if (
+    session.role === "USER" &&
+    existingTask.userId !== session.userId
+  ) {
+    throw new Error("Bạn không có quyền sửa công việc này");
+  }
 
   await prisma.task.update({
     where: {
@@ -71,7 +98,25 @@ export async function updateTask(formData: FormData) {
 }
 
 export async function deleteTask(formData: FormData) {
+  const session = await getSession();
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   const id = Number(formData.get("id"));
+
+  const existingTask = await prisma.task.findUnique({
+    where: { id },
+  });
+  if (!existingTask) {
+    throw new Error("Không tìm thấy công việc");
+  }
+  if (
+    session.role === "USER" &&
+    existingTask.userId !== session.userId
+  ) {
+    throw new Error("Bạn không có quyền xóa công việc này");
+  }
 
   await prisma.taskHistory.deleteMany({
     where: {
